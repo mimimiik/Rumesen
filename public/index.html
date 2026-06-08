@@ -1,0 +1,439 @@
+```html
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Rumesen</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- ПОДКЛЮЧАЕМ SOCKET.IO -->
+<script src="/socket.io/socket.io.js"></script>
+<style>
+/* ТУТ ТВОИ СТИЛИ, Я ИХ СОХРАНИЛ БЕЗ ИЗМЕНЕНИЙ, ОНИ ИДЕАЛЬНЫ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{ --bg:#f4f4f4;--panel:#ececec;--sidebar:#e6e6e6;--card:#e2e2e2; --bi:#e8e8e8;--bm:#d4d4d4;--border:#d8d8d8; --t1:#1a1a1a;--t2:#555;--t3:#999;--acc:#3a3a3a;--icon:#666; --sh:rgba(0,0,0,.08);--r:14px;--nav:60px;--snav:68px; --online:#7dc47d;--miss:#c88;}
+[data-theme="dark"]{ --bg:#1a1a1a;--panel:#242424;--sidebar:#1f1f1f;--card:#2e2e2e; --bi:#2a2a2a;--bm:#323232;--border:#333; --t1:#f0f0f0;--t2:#aaa;--t3:#666;--acc:#e0e0e0;--icon:#888; --sh:rgba(0,0,0,.3);}
+html,body{height:100%;overflow:hidden;font-family:'Manrope',sans-serif;background:var(--bg);color:var(--t1);-webkit-tap-highlight-color:transparent;transition:background .25s,color .25s}
+
+/* ════ SPLASH ════ */
+#splash{position:fixed;inset:0;background:var(--acc);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:16px;transition:opacity .4s}
+#splash.hide{opacity:0;pointer-events:none}
+.sp-logo{width:80px;height:80px;background:#fff;border-radius:24px;display:grid;place-items:center;font-size:36px;font-weight:700;color:var(--acc)}
+#splash h1{color:#fff;font-size:22px;font-weight:700;letter-spacing:-.5px}
+#splash p{color:rgba(255,255,255,.6);font-size:13px}
+.sp-spin{width:28px;height:28px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin-top:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ════ AUTH ════ */
+#auth{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:998;padding:20px}
+#auth.show{display:flex}
+.auth-card{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:28px 24px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:16px}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.auth-logo-ic{width:42px;height:42px;background:var(--acc);border-radius:12px;display:grid;place-items:center;color:#fff;font-size:20px;font-weight:700}
+.auth-logo span{font-size:20px;font-weight:700}
+.auth-tabs{display:flex;background:var(--card);border-radius:10px;padding:3px;gap:2px}
+.auth-tab{flex:1;text-align:center;padding:8px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;color:var(--t2);transition:all .15s}
+.auth-tab.on{background:var(--panel);color:var(--t1);box-shadow:0 1px 4px var(--sh)}
+.auth-field{display:flex;flex-direction:column;gap:5px}
+.auth-field label{font-size:12px;font-weight:600;color:var(--t3)}
+.auth-field input{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:14px;color:var(--t1);outline:none;transition:border-color .15s}
+.auth-field input:focus{border-color:var(--acc)}
+.auth-btn{background:var(--acc);color:var(--bg);border:none;border-radius:11px;padding:12px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.auth-btn:hover{opacity:.85}
+.auth-err{font-size:12px;color:#c88;text-align:center;min-height:16px}
+
+/* ════ APP SHELL ════ */
+#app{display:flex;height:100dvh;height:100vh;overflow:hidden;position:relative;opacity:0;transition:opacity .3s}
+#app.show{opacity:1}
+.snav{width:var(--snav);background:var(--acc);display:flex;flex-direction:column;align-items:center;padding:18px 0;gap:4px;flex-shrink:0;z-index:5}
+[data-theme="dark"] .snav{background:#111}
+.sn-logo{width:38px;height:38px;background:var(--bg);border-radius:11px;display:grid;place-items:center;margin-bottom:14px;font-size:17px;font-weight:700;color:var(--acc)}
+.sn-btn{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;cursor:pointer;transition:background .15s;position:relative}
+.sn-btn svg{stroke:rgba(255,255,255,.45);transition:stroke .15s}
+.sn-btn:hover{background:rgba(255,255,255,.12)}
+.sn-btn:hover svg,.sn-btn.on svg{stroke:#fff}
+.sn-btn.on{background:rgba(255,255,255,.18)}
+.sn-sp{flex:1}
+.sn-av{width:34px;height:34px;border-radius:50%;color:#fff;font-size:12px;font-weight:600;display:grid;place-items:center;cursor:pointer;border:2px solid rgba(255,255,255,.25);overflow:hidden;background:#888}
+
+/* ════ CHAT LIST ════ */
+.cl{width:286px;background:var(--sidebar);display:flex;flex-direction:column;border-right:1px solid var(--border);flex-shrink:0;}
+.cl-hd{padding:16px 14px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.cl-hd-l h1{font-size:17px;font-weight:700;}
+.srch{padding:9px 12px;position:relative}
+.srch svg{position:absolute;left:22px;top:50%;transform:translateY(-50%);stroke:var(--t3);}
+.srch input{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 10px 8px 34px;font-family:inherit;font-size:13px;color:var(--t1);outline:none;}
+.tabs{display:flex;padding:0 12px 8px;gap:5px;}
+.tab{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:20px;cursor:pointer;background:transparent;color:var(--t3);border:1px solid transparent;}
+.tab.on{background:var(--acc);color:var(--bg)}
+.ci-list{overflow-y:auto;flex:1}
+.ci{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;position:relative}
+.ci:hover,.ci.on{background:var(--card)}
+.ci-av{width:44px;height:44px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-size:14px;font-weight:600;color:#fff;position:relative;background:#888}
+.dot{position:absolute;bottom:1px;right:1px;width:10px;height:10px;border-radius:50%;background:#bbb;border:2px solid var(--sidebar)}
+.dot.on{background:var(--online);}
+.ci-body{flex:1;min-width:0}
+.ci-top{display:flex;justify-content:space-between;align-items:baseline}
+.ci-nm{font-size:13.5px;font-weight:600}
+.ci-tm{font-size:10.5px;color:var(--t3)}
+.ci-pr{font-size:12px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+
+/* ════ CHAT MAIN ════ */
+.cm{flex:1;display:flex;flex-direction:column;background:var(--bg);min-width:0}
+.cm-top{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;background:var(--panel);}
+.cm-av{width:36px;height:36px;border-radius:50%;color:#fff;font-size:13px;font-weight:600;display:grid;place-items:center;position:relative;background:#888}
+.cm-info{flex:1}
+.cm-nm{font-size:14px;font-weight:700}
+.cm-st{font-size:11.5px;color:var(--t3)}
+.msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:6px}
+.mr{display:flex;gap:7px;align-items:flex-end;max-width:76%;}
+.mr.me{margin-left:auto;flex-direction:row-reverse}
+.m-av{width:28px;height:28px;border-radius:50%;color:#fff;font-size:10px;font-weight:600;display:grid;place-items:center;background:#888}
+.bub{background:var(--bi);border-radius:var(--r) var(--r) var(--r) 4px;padding:9px 13px;font-size:13.5px;line-height:1.5;}
+.mr.me .bub{background:var(--bm);border-radius:var(--r) var(--r) 4px var(--r)}
+.bm{font-size:10px;color:var(--t3);margin-top:3px;display:flex;align-items:center;gap:3px}
+.mr.me .bm{justify-content:flex-end}
+
+/* ════ INPUT AREA ════ */
+.inp-area{padding:10px 12px;border-top:1px solid var(--border);background:var(--panel);display:flex;align-items:flex-end;gap:7px;}
+.iwrap{flex:1;background:var(--card);border:1px solid var(--border);border-radius:11px;display:flex;align-items:flex-end;padding:8px 10px;}
+.mi{flex:1;border:none;outline:none;background:transparent;font-family:inherit;font-size:13.5px;color:var(--t1);resize:none;max-height:90px;}
+.sbtn{width:37px;height:37px;border-radius:10px;background:var(--acc);display:grid;place-items:center;cursor:pointer;}
+.sbtn svg{stroke:var(--bg)}
+
+/* ════ SCREENS ════ */
+.scr{display:none;flex-direction:column;flex:1;background:var(--bg);overflow:hidden}
+.scr.active{display:flex}
+.scr-hd{padding:16px 14px 12px;border-bottom:1px solid var(--border);background:var(--panel);display:flex;align-items:center;gap:10px}
+.con-item{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;}
+.con-av{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;font-size:14px;color:#fff;background:#888}
+.con-body{flex:1}
+.con-nm{font-size:13.5px;font-weight:600}
+.con-st{font-size:11.5px;color:var(--t3);}
+.con-acts{display:flex;gap:5px}
+.con-btn{width:30px;height:30px;border-radius:8px;background:var(--acc);display:grid;place-items:center;cursor:pointer;color:#fff;font-size:12px;font-weight:bold;}
+
+/* Toast */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;color:var(--t1);z-index:500;transition:transform .3s;}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Utilities */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="sp-logo">M</div>
+  <h1>Rumesen</h1>
+  <p>Загрузка сети...</p>
+  <div class="sp-spin"></div>
+</div>
+
+<!-- AUTH -->
+<div id="auth">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-ic">r</div>
+      <span>Rumesen</span>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab on" onclick="authTab('login')">Войти</div>
+      <div class="auth-tab" onclick="authTab('reg')">Регистрация</div>
+    </div>
+    <div id="login-form" style="display:flex;flex-direction:column;gap:12px">
+      <div class="auth-field"><label>Имя пользователя</label><input id="l-user" placeholder="@username"></div>
+      <div class="auth-field"><label>Пароль</label><input id="l-pass" type="password" placeholder="••••••••"></div>
+      <div class="auth-err" id="l-err"></div>
+      <button class="auth-btn" onclick="doLogin()">Войти</button>
+    </div>
+    <div id="reg-form" style="display:none;flex-direction:column;gap:12px">
+      <div class="auth-field"><label>Ваше Имя</label><input id="r-name" placeholder="Алексей"></div>
+      <div class="auth-field"><label>Имя пользователя</label><input id="r-user" placeholder="@username"></div>
+      <div class="auth-field"><label>Пароль</label><input id="r-pass" type="password" placeholder="••••••••"></div>
+      <div class="auth-err" id="r-err"></div>
+      <button class="auth-btn" onclick="doReg()">Создать аккаунт</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <nav class="snav">
+    <div class="sn-logo" onclick="doLogout()" title="Выйти">r</div>
+    <div class="sn-btn on" onclick="showScreen('chat', this)"><svg width="19" height="19" fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+    <div class="sn-btn" onclick="showScreen('contacts', this)"><svg width="19" height="19" fill="none" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+    <div class="sn-sp"></div>
+    <div class="sn-av" id="myAvatar">Я</div>
+  </nav>
+
+  <div class="cl" id="cl">
+    <div class="cl-hd"><div><h1>Чаты</h1></div></div>
+    <div class="ci-list" id="ci-list"></div>
+  </div>
+
+  <div class="cm hidden" id="cm">
+    <div class="cm-top">
+      <div class="cm-av"><div class="dot on"></div><span id="chatAv">?</span></div>
+      <div class="cm-info">
+        <div class="cm-nm" id="chatName">Выберите чат</div>
+        <div class="cm-st" id="chatStatus">—</div>
+      </div>
+    </div>
+    <div class="msgs" id="msgs">
+        <div style="margin:auto; color:var(--t3);">Выберите чат слева, чтобы начать общение</div>
+    </div>
+    <div class="inp-area">
+      <div class="iwrap"><textarea class="mi" id="mi" placeholder="Написать сообщение…"></textarea></div>
+      <div class="sbtn" onclick="sendMsg()"><svg width="16" height="16" fill="none" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div>
+    </div>
+  </div>
+
+  <!-- Contacts Screen -->
+  <div class="scr" id="scr-contacts">
+    <div class="scr-hd"><h2>Поиск людей (Глобальный)</h2></div>
+    <div class="srch" style="background:var(--sidebar)">
+      <svg width="14" height="14" fill="none" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input placeholder="Введите @username или имя…" oninput="searchGlobal(this.value)">
+    </div>
+    <div style="flex:1; overflow-y:auto;" id="contacts-list">
+        <div style="padding:20px; text-align:center; color:var(--t3); font-size:13px;">Начните вводить текст для поиска пользователей на сервере.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// --- ИНИЦИАЛИЗАЦИЯ SOCKET.IO ---
+const socket = io();
+
+// --- STATE ---
+let STATE = {
+  user: null,
+  chats: [],
+  messages: {},
+  contacts: [],
+  currentChatId: null
+};
+
+// Вспомогательные функции
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+function avatar(name){ return (name||'?').slice(0,2).toUpperCase(); }
+
+// --- АВТОРИЗАЦИЯ И РЕГИСТРАЦИЯ (СЕРВЕРНАЯ) ---
+function authTab(t){
+  document.getElementById('login-form').style.display = t==='login'?'flex':'none';
+  document.getElementById('reg-form').style.display = t==='reg'?'flex':'none';
+  document.querySelectorAll('.auth-tab').forEach((el,i)=>el.classList.toggle('on', (i===0&&t==='login')||(i===1&&t==='reg')));
+}
+
+async function doLogin(){
+  const username = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  try {
+      const res = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username, pass}) });
+      const data = await res.json();
+      if(data.error) return document.getElementById('l-err').textContent = data.error;
+      localStorage.setItem('token', data.token);
+      window.location.reload();
+  } catch(e) { document.getElementById('l-err').textContent = "Ошибка сети"; }
+}
+
+async function doReg(){
+  const name = document.getElementById('r-name').value.trim();
+  const username = document.getElementById('r-user').value.trim();
+  const pass = document.getElementById('r-pass').value;
+  try {
+      const res = await fetch('/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, username, pass}) });
+      const data = await res.json();
+      if(data.error) return document.getElementById('r-err').textContent = data.error;
+      localStorage.setItem('token', data.token);
+      window.location.reload();
+  } catch(e) { document.getElementById('r-err').textContent = "Ошибка сети"; }
+}
+
+function doLogout(){
+  localStorage.removeItem('token');
+  window.location.reload();
+}
+
+// --- BOOT ---
+window.onload = () => {
+    const token = localStorage.getItem('token');
+    setTimeout(() => {
+        document.getElementById('splash').classList.add('hide');
+        if (token) {
+            socket.emit('auth', token); // Подключаем сокет к аккаунту
+        } else {
+            document.getElementById('auth').classList.add('show');
+        }
+    }, 1000);
+};
+
+// --- СОБЫТИЯ СЕРВЕРА ---
+socket.on('auth_success', (data) => {
+    STATE.user = data.user;
+    STATE.chats = data.chats;
+    STATE.messages = data.messages;
+    STATE.contacts = data.contacts;
+    
+    document.getElementById('auth').classList.remove('show');
+    document.getElementById('app').classList.add('show');
+    renderChats();
+});
+
+socket.on('auth_error', () => { doLogout(); });
+
+socket.on('new_chat', (data) => {
+    if(!STATE.chats.find(c=>c.id===data.chat.id)) STATE.chats.unshift(data.chat);
+    if(!STATE.messages[data.chat.id]) STATE.messages[data.chat.id] = [];
+    // Добавляем новых контактов в память
+    data.members.forEach(m => {
+        if(m.id !== STATE.user.id && !STATE.contacts.find(c=>c.id===m.id)) STATE.contacts.push(m);
+    });
+    renderChats();
+});
+
+socket.on('new_message', (data) => {
+    if(!STATE.messages[data.chatId]) STATE.messages[data.chatId] = [];
+    STATE.messages[data.chatId].push(data.msg);
+    if(STATE.currentChatId === data.chatId) renderMessages();
+    renderChats();
+});
+
+socket.on('user_status', (data) => {
+    const c = STATE.contacts.find(x => x.id === data.id);
+    if (c) {
+        c.online = data.online;
+        c.status = data.status || (data.online ? 'В сети' : 'Оффлайн');
+        if (STATE.currentChatId) {
+            const activeChat = STATE.chats.find(x => x.id === STATE.currentChatId);
+            if(activeChat && activeChat.members.includes(data.id)) {
+                document.getElementById('chatStatus').textContent = c.status;
+            }
+        }
+        renderChats();
+    }
+});
+
+// --- НАВИГАЦИЯ ---
+function showScreen(id, el){
+  if(el) { document.querySelectorAll('.sn-btn').forEach(b=>b.classList.remove('on')); el.classList.add('on'); }
+  document.getElementById('cm').classList.add('hidden');
+  document.getElementById('scr-contacts').classList.remove('active');
+  
+  if(id === 'chat'){
+      if(STATE.currentChatId) document.getElementById('cm').classList.remove('hidden');
+  } else if (id === 'contacts') {
+      document.getElementById('scr-contacts').classList.add('active');
+  }
+}
+
+// --- РЕНДЕР ЧАТОВ И СООБЩЕНИЙ ---
+function getChatPartner(chat){
+    const partnerId = chat.members.find(m => m !== STATE.user.id);
+    return STATE.contacts.find(c => c.id === partnerId) || { name: 'Неизвестно', online: false };
+}
+
+function renderChats(){
+    const list = document.getElementById('ci-list');
+    list.innerHTML = STATE.chats.map(c => {
+        const partner = getChatPartner(c);
+        const msgs = STATE.messages[c.id] || [];
+        const lastMsg = msgs.length ? msgs[msgs.length-1].text : 'Нет сообщений';
+        
+        return `<div class="ci ${STATE.currentChatId===c.id?'on':''}" onclick="pickChat('${c.id}')">
+            <div class="ci-av" style="background:#888">${avatar(partner.name)}<div class="dot ${partner.online?'on':''}"></div></div>
+            <div class="ci-body">
+                <div class="ci-top"><span class="ci-nm">${partner.name}</span></div>
+                <div class="ci-pr">${lastMsg}</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function pickChat(chatId){
+    STATE.currentChatId = chatId;
+    const chat = STATE.chats.find(c => c.id === chatId);
+    const partner = getChatPartner(chat);
+    
+    document.getElementById('cm').classList.remove('hidden');
+    document.getElementById('chatName').textContent = partner.name;
+    document.getElementById('chatStatus').textContent = partner.online ? 'В сети' : 'Оффлайн';
+    document.getElementById('chatAv').textContent = avatar(partner.name);
+    
+    renderChats();
+    renderMessages();
+}
+
+function renderMessages(){
+    const el = document.getElementById('msgs');
+    if(!STATE.currentChatId) return;
+    const msgs = STATE.messages[STATE.currentChatId] || [];
+    
+    el.innerHTML = msgs.map(m => {
+        const isMe = m.from === STATE.user.id;
+        return `<div class="mr ${isMe?'me':''}">
+            ${!isMe ? `<div class="m-av">${avatar(getChatPartner(STATE.chats.find(c=>c.id===STATE.currentChatId)).name)}</div>` : ''}
+            <div>
+                <div class="bub">${m.text}</div>
+                <div class="bm">${m.time}</div>
+            </div>
+        </div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+}
+
+// --- ОТПРАВКА СООБЩЕНИЯ ---
+function sendMsg(){
+    const text = document.getElementById('mi').value.trim();
+    if(!text || !STATE.currentChatId) return;
+    
+    // Эмитим на сервер
+    socket.emit('send_message', { chatId: STATE.currentChatId, text });
+    document.getElementById('mi').value = '';
+}
+
+// --- ГЛОБАЛЬНЫЙ ПОИСК И НАЧАЛО ДИАЛОГА ---
+let searchTimer;
+function searchGlobal(query){
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+        socket.emit('search_users', query, (results) => {
+            const list = document.getElementById('contacts-list');
+            if(results.length === 0) {
+                list.innerHTML = `<div style="padding:20px;text-align:center;color:#999">Пользователи не найдены</div>`;
+                return;
+            }
+            list.innerHTML = results.map(u => `
+                <div class="con-item">
+                    <div class="con-av" style="background:#555">${avatar(u.name)}</div>
+                    <div class="con-body">
+                        <div class="con-nm">${u.name}</div>
+                        <div class="con-st">${u.username}</div>
+                    </div>
+                    <div class="con-acts">
+                        <div class="con-btn" onclick="startChat('${u.id}')">Написать</div>
+                    </div>
+                </div>
+            `).join('');
+        });
+    }, 500); // Защита от спама (Debounce)
+}
+
+function startChat(userId){
+    socket.emit('start_chat', userId, (chatId) => {
+        showScreen('chat', document.querySelectorAll('.sn-btn')[0]);
+        pickChat(chatId);
+    });
+}
+</script>
+</body>
+</html>
+
+```
