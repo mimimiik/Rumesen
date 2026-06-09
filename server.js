@@ -3,18 +3,16 @@ const express = require('express');
 const path = require('path');
 
 const app = express();
-// Render автоматически назначает порт через переменную окружения PORT
 const PORT = process.env.PORT || 3000;
 
-// Если у вас появятся статические файлы (картинки, стили), их можно будет положить в папку public
-// app.use(express.static(path.join(__dirname, 'public')));
+// Отдаем файлы из текущей директории
+app.use(express.static(__dirname));
 
-// Обрабатываем все GET-запросы и отдаем наш главный файл мессенджера
+// Любой другой запрос перенаправляем на файл мессенджера
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'messenger.html'));
 });
 
-// Запускаем сервер
 app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
+    console.log('Server is running on port ' + PORT);
 });
